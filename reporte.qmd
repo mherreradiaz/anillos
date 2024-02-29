@@ -1,0 +1,91 @@
+---
+title: "Días grado"
+lang: es
+author: "M. Abel Herrera"
+format: html
+editor: visual
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+# Reporte: Temperatura y Días grado
+
+## Gap-filling de temperatura diaria
+
+```{r}
+#| column: screen
+#| fig-align: center
+#| fig-width: 13
+#| fig-height: 5
+
+library(fs)
+library(readr)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(stringr)
+library(tidyverse)
+library(scales)
+
+data_temp <- read_rds('data/data_processed/temperatura.rds') |>
+  mutate(fecha = as.Date(fecha)) |>
+  filter(month(fecha) >= 6) |>
+  group_by(sitio,temporada,fecha) |>
+  summarise(tmin = min(tmin,na.rm=F),
+            tmax = max(tmax,na.rm=F),
+            tavg = mean(tavg,na.rm=F)) |>
+  ungroup()
+
+data_fill <- read_rds('data/data_processed/temperatura_fill.rds')
+
+data_fill_gaps <- data_fill |>
+  left_join(data_temp, by = c('sitio','temporada','fecha')) |>
+  filter((sitio == 'rio_claro' & between(fecha, as.Date('2022-08-23'), as.Date('2022-09-02'))) |
+           (sitio == 'la_esperanza' & between(fecha, as.Date('2023-08-14'), as.Date('2023-08-17'))))
+
+data_fill |>
+  select(-tmin,-tmax,-tavg) |>
+  left_join(data_temp, by = c('sitio','temporada','fecha')) |>
+  pivot_longer(cols = c('tmin','tmax'), values_to = 't', names_to = 'variable') |>
+  ggplot(aes(fecha,t,color = variable)) +
+  geom_line() +
+  facet_grid(sitio ~temporada, scales = 'free_x', labeller = as_labeller(c('2022-2023' = 'Temporada 2022-2023',
+                                                                           '2023-2024' = 'Temporada 2023-2024',
+                                                                           'la_esperanza' = 'La Esperanza',
+                                                                           'rio_claro' = 'Rio Claro'))) +
+  scale_color_manual(values = c('blue3','green3')) +
+  geom_line(data = data_fill_gaps, aes(fecha,tmin.x), color = 'red3', linetype = 2) +
+  geom_line(data = data_fill_gaps, aes(fecha,tmax.x), color = 'red3', linetype = 2) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+  theme_light() +
+  labs(y = 'Temperatura (°C/día)',
+       x = 'Meses') +
+  guides(color = guide_legend(override.aes = list(size = 2.5)))
+
+```
+
+## Días grado
+
+```{r}
+#| column: screen
+#| fig-align: center
+#| fig-width: 11
+#| fig-height: 6
+
+data_gdd <- read_rds('data/data_processed/gdd.rds') 
+
+data_gdd |>
+  mutate(fecha = case_when(temporada == '2023-2024' ~ fecha - 365,T ~ fecha),
+         Curva = paste0(sitio,' (',temporada,')')) |>
+  ggplot(aes(fecha,gdd_acum,color = Curva)) +
+  geom_line(linewidth = 1.2) +
+  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
+  labs(x = 'Meses',
+       y = 'Días grado',
+       color = '') +
+  scale_color_manual(labels=c('La Esperanza (2022-2023)', 'La Esperanza (2023-2024)',
+                               'Rio Claro (2022-2023)','Rio Claro (2023-2024)'), values = hue_pal()(4)) +
+  theme_light()
+```
