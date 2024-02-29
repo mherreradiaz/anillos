@@ -104,3 +104,4 @@ data_gdd <- data_temp |>
   ungroup()
 
 write_rds(data_gdd,'data/data_processed/gdd.rds')
+
