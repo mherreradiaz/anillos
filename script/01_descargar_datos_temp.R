@@ -10,7 +10,7 @@ library(agvAPI)
 
 # Temporada 2022-2023
 
-periodo <- c('2022-05-01','2023-01-01')
+periodo <- c('2022-05-01','2023-04-01')
 
 le_temp <- getDataAGV_clima(station_id ='00205018', var = 'Temperature',
                             time_span = periodo) |>
@@ -34,15 +34,15 @@ data_temp_2022 <- temp |>
          .before = datetime) |>
   select(-datetime) |>
   group_by(sitio,fecha,hora) |>
-  summarise(tavg = mean(t_avg,na.rm=T),
-            tmin = min(t_min,na.rm=T),
-            tmax = max(t_max,na.rm=T)) |>
+  summarise(tavg = mean(tavg,na.rm=T),
+            tmin = min(tmin,na.rm=T),
+            tmax = max(tmax,na.rm=T)) |>
   ungroup() |>
   mutate(temporada = '2022-2023', .before = fecha)
 
 # Temporada 2023-2024
 
-periodo <- c('2023-05-01','2024-01-01')
+periodo <- c('2023-05-01','2024-04-01')
 
 le_temp <- getDataAGV_clima(station_id ='00205018', var = 'Temperature',
                             time_span = periodo) |>
@@ -66,9 +66,9 @@ data_temp_2023 <- temp |>
          .before = datetime) |>
   select(-datetime) |>
   group_by(sitio,fecha,hora) |>
-  summarise(tavg = mean(t_avg,na.rm=T),
-            tmin = min(t_min,na.rm=T),
-            tmax = max(t_max,na.rm=T)) |>
+  summarise(tavg = mean(tavg,na.rm=T),
+            tmin = min(tmin,na.rm=T),
+            tmax = max(tmax,na.rm=T)) |>
   ungroup() |>
   mutate(temporada = '2023-2024', .before = fecha)
 

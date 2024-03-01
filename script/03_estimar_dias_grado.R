@@ -1,3 +1,4 @@
+
 library(chillR)
 library(tidyquant)
 library(plotly)
@@ -34,7 +35,6 @@ gdd_function <- function(tmin, tmax, tb = 10, tu = 35) {
 
 data_temp <- read_rds('data/data_processed/temperatura.rds') |>
   mutate(fecha = as.Date(fecha)) |>
-  filter(month(fecha) > 5) |>
   group_by(sitio,temporada,fecha) |>
   summarise(tmin = min(tmin,na.rm=F),
             tmax = max(tmax,na.rm=F),
@@ -43,12 +43,14 @@ data_temp <- read_rds('data/data_processed/temperatura.rds') |>
   mutate(tmin = ifelse(tmin == 10,10.01,tmin),
          tmax = ifelse(tmax == 35,35.01,tmax))
 
-fechas_2022 <- seq(as.Date("2022-06-01"), as.Date("2022-12-31"), by = "day")
+fechas_2022 <- seq(as.Date("2022-06-01"), as.Date("2023-02-28"), by = "day")
+fechas_2023 <- seq(as.Date("2023-06-01"), as.Date("2024-02-29"), by = "day")
 
 data_gaps <- tibble(
-  sitio = rep(rep(c("la_esperanza", "rio_claro"), each = length(fechas_2022)),2),
-  fecha = c(rep(fechas_2022,2),rep(fechas_2022 + 365,2))) |>
-  mutate(temporada = ifelse(fecha < '2023-03-01','2022-2023','2023-2024'),
+  sitio = c(rep(c("la_esperanza", "rio_claro"), each = length(fechas_2022)),
+            rep(c("la_esperanza", "rio_claro"), each = length(fechas_2023))),
+  fecha = c(rep(fechas_2022,2),rep(fechas_2023,2))) |>
+  mutate(temporada = ifelse(fecha < '2023-04-01','2022-2023','2023-2024'),
                             .before = fecha) |>
   left_join(data_temp, by = c('sitio','temporada','fecha')) |>
   mutate(Year = year(fecha),
@@ -84,7 +86,7 @@ data_fill <- rbind(gaps_le,gaps_rc) |>
   rename(tmin = Tmin,
          tmax = Tmax,
          tavg = Tavg) |>
-  mutate(temporada = ifelse(fecha < '2023-03-01','2022-2023','2023-2024'),
+  mutate(temporada = ifelse(fecha < '2023-05-01','2022-2023','2023-2024'),
          .before = fecha) |>
   arrange(temporada,sitio,fecha) |>
   mutate(tavg = ifelse(is.na(tavg),(tmin+tmax)/2,tavg))
@@ -96,7 +98,7 @@ write_rds(data_fill,'data/data_processed/temperatura_fill.rds')
 data_temp <- read_rds('data/data_processed/temperatura_fill.rds')
 
 data_gdd <- data_temp |>
-  filter(month(fecha) >= 8) |>
+  filter(!between(month(fecha),3,7)) |>
   rowwise() |>
   mutate(gdd = gdd_function(tmin,tmax)) |>
   group_by(sitio,temporada) |>

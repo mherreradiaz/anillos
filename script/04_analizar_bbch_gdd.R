@@ -1,24 +1,3 @@
----
-title: "Días grado"
-lang: es
-author: "M. Abel Herrera"
-format: html
-editor: visual
-execute:
-  echo: false
-  warning: false
-  message: false
----
-
-# Reporte: Temperatura y Días grado
-
-## Gap-filling de temperatura diaria
-
-```{r}
-#| column: screen
-#| fig-align: center
-#| fig-width: 13
-#| fig-height: 5
 
 library(fs)
 library(readr)
@@ -27,80 +6,15 @@ library(lubridate)
 library(tidyr)
 library(stringr)
 library(tidyverse)
-library(scales)
-library(readxl)
+library(dbscan)
+library(purrr)
+library(grid)
 library(cowplot)
 library(ggpubr)
+library(scales)
+library(readxl)
 
-data_temp <- read_rds('C:/Hemera/anillos/data/data_processed/temperatura.rds') |>
-  mutate(fecha = as.Date(fecha)) |>
-  group_by(sitio,temporada,fecha) |>
-  summarise(tmin = min(tmin,na.rm=F),
-            tmax = max(tmax,na.rm=F),
-            tavg = mean(tavg,na.rm=F)) |>
-  ungroup()
-
-data_fill <- read_rds('C:/Hemera/anillos/data/data_processed/temperatura_fill.rds')
-
-data_fill_gaps <- data_fill |>
-  left_join(data_temp, by = c('sitio','temporada','fecha')) |>
-  filter((sitio == 'rio_claro' & between(fecha, as.Date('2022-08-23'), as.Date('2022-09-02'))) |
-           (sitio == 'la_esperanza' & between(fecha, as.Date('2023-08-14'), as.Date('2023-08-17'))))
-
-data_fill |>
-  select(-tmin,-tmax,-tavg) |>
-  left_join(data_temp, by = c('sitio','temporada','fecha')) |>
-  pivot_longer(cols = c('tmin','tmax'), values_to = 't', names_to = 'variable') |>
-  ggplot(aes(fecha,t,color = variable)) +
-  geom_line() +
-  facet_grid(sitio ~temporada, scales = 'free_x', labeller = as_labeller(c('2022-2023' = 'Temporada 2022-2023',
-                                                                           '2023-2024' = 'Temporada 2023-2024',
-                                                                           'la_esperanza' = 'La Esperanza',
-                                                                           'rio_claro' = 'Rio Claro'))) +
-  scale_color_manual(values = c('blue3','green3')) +
-  geom_line(data = data_fill_gaps, aes(fecha,tmin.x), color = 'red3', linetype = 2) +
-  geom_line(data = data_fill_gaps, aes(fecha,tmax.x), color = 'red3', linetype = 2) +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
-  theme_light() +
-  labs(y = 'Temperatura (°C/día)',
-       x = 'Meses') +
-  guides(color = guide_legend(override.aes = list(size = 2.5)))
-
-```
-
-## Días grado
-
-```{r}
-#| column: screen
-#| fig-align: center
-#| fig-width: 11
-#| fig-height: 6
-
-data_gdd <- read_rds('C:/Hemera/anillos/data/data_processed/gdd.rds') 
-
-data_gdd |>
-  mutate(fecha = case_when(temporada == '2023-2024' ~ fecha - 365,T ~ fecha),
-         Curva = paste0(sitio,' (',temporada,')')) |>
-  ggplot(aes(fecha,gdd_acum,color = Curva)) +
-  geom_line(linewidth = 1.2) +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
-  labs(x = 'Meses',
-       y = 'Días grado',
-       color = '') +
-  scale_color_manual(labels=c('La Esperanza (2022-2023)', 'La Esperanza (2023-2024)',
-                               'Rio Claro (2022-2023)','Rio Claro (2023-2024)'), values = hue_pal()(4)) +
-  theme_light()
-```
-
-## Relación logarítmica
-
-```{r}
-#| column: screen
-#| fig-align: center
-#| fig-width: 11
-#| fig-height: 6
-
-bbch <- read_xlsx('C:/Hemera/anillos/data/data_raw/bbch.xlsx') |>
+bbch <- read_xlsx('data/data_raw/bbch.xlsx') |>
   mutate(fecha_inicial = as.Date(fecha_inicial),
          fecha_final = as.Date(fecha_final)) |>
   pivot_longer(cols = c('fecha_inicial','fecha_final'), values_to = 'fecha', names_to = 'fecha_tipo')
@@ -115,7 +29,7 @@ fechas <- bbch |>
 fechas <- list(la_esperanza = seq.Date(fechas[1],fechas[2], by = 'day'),
             rio_claro = seq.Date(fechas[3],fechas[4], by = 'day'))
 
-data_gdd <- read_rds('C:/Hemera/anillos/data/data_processed/gdd.rds')
+data_gdd <- read_rds('data/data_processed/gdd.rds')
 
 datos_cor <- tibble(sitio = rep(c('la_esperanza','rio_claro'),times = c(length(fechas$la_esperanza),
                                                                      length(fechas$rio_claro))),
@@ -132,6 +46,7 @@ datos_cor <- tibble(sitio = rep(c('la_esperanza','rio_claro'),times = c(length(f
 datos_le <- datos_cor |> filter(sitio == 'la_esperanza')
 datos_rc <- datos_cor |> filter(sitio == 'rio_claro')
 
+# Relación logarítmica
 
 modelo_log <- nls(bbch ~ SSlogis(gdd, Asym, xmid, scal), data = datos_le)
 parametros <- coef(modelo_log)
@@ -167,19 +82,12 @@ plot_rc <- ggplot(datos_rc, aes(gdd,bbch)) +
   ylim(60,100) +
   theme_light()
 
-plot_grid(ggdraw() + draw_label('Ajuste logarítmico BBCH vs. GDD (2022-2023)', size = 14),
+log_combined <- plot_grid(ggdraw() + draw_label('Ajuste logarítmico BBCH vs. GDD', size = 14),
                           plot_grid(plot_le,plot_rc, ncol = 2),
                           ncol = 1, rel_heights = c(.1,1))
-```
 
-## Relación lineal
+# Relación lineal
 
-```{r}
-#| column: screen
-#| fig-align: center
-#| fig-width: 11
-#| fig-height: 6
-#| 
 plot_le <- ggplot(datos_le, aes(x = gdd_log, y = bbch)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
@@ -198,7 +106,18 @@ plot_rc <- ggplot(datos_rc, aes(x = gdd_log, y = bbch)) +
        y = "Escala BBCH") +
   theme_light()
 
-plot_grid(ggdraw() + draw_label('Ajuste lineal BBCH vs. GDD (2022-2023)', size = 14),
+lm_combined <- plot_grid(ggdraw() + draw_label('Ajuste lineal BBCH vs. GDD', size = 14),
                           plot_grid(plot_le,plot_rc, ncol = 2),
                           ncol = 1, rel_heights = c(.1,1))
-```
+
+# Boxplot
+
+data_gdd <- read_rds('data/data_processed/gdd.rds')
+
+data_gdd |>
+  left_join(bbch, by = c('sitio','fecha')) |>
+  filter(!is.na(etapa)) |>
+  ggplot(aes(as.factor(bbch),gdd_acum)) +
+  geom_boxplot() +
+  facet_wrap(~sitio) +
+  coord_flip()

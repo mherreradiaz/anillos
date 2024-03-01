@@ -9,9 +9,9 @@ library(tidyr)
 library(tidyverse)
 library(imputeTS)
 
-data_temp <- read_rds('data/temperatura.rds') |>
-  select(-t_min,-t_max) |>
-  rename(Temp = t_avg)
+data_temp <- read_rds('data/data_processed/temperatura.rds') |>
+  select(-tmin,-tmax) |>
+  rename(Temp = tavg)
 
 latitud_la_esperanza <- -34.32844
 latitud_rio_claro <- -34.69997
