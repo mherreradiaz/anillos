@@ -15,10 +15,10 @@ execute:
 ## Gap-filling de temperatura diaria
 
 ```{r}
-#| column: screen
+#| fig-width: 10
+#| fig-height: 7
 #| fig-align: center
-#| fig-width: 13
-#| fig-height: 5
+#| lightbox: true
 
 library(fs)
 library(readr)
@@ -71,10 +71,10 @@ data_fill |>
 ## Días grado
 
 ```{r}
-#| column: screen
+#| fig-width: 10
+#| fig-height: 7
 #| fig-align: center
-#| fig-width: 11
-#| fig-height: 6
+#| lightbox: true
 
 data_gdd <- read_rds('C:/Hemera/anillos/data/data_processed/gdd.rds') 
 
@@ -95,10 +95,10 @@ data_gdd |>
 ## Relación logarítmica
 
 ```{r}
-#| column: screen
+#| fig-width: 10
+#| fig-height: 7
 #| fig-align: center
-#| fig-width: 11
-#| fig-height: 6
+#| lightbox: true
 
 bbch <- read_xlsx('C:/Hemera/anillos/data/data_raw/bbch.xlsx') |>
   mutate(fecha_inicial = as.Date(fecha_inicial),
@@ -131,7 +131,6 @@ datos_cor <- tibble(sitio = rep(c('la_esperanza','rio_claro'),times = c(length(f
 
 datos_le <- datos_cor |> filter(sitio == 'la_esperanza')
 datos_rc <- datos_cor |> filter(sitio == 'rio_claro')
-
 
 modelo_log <- nls(bbch ~ SSlogis(gdd, Asym, xmid, scal), data = datos_le)
 parametros <- coef(modelo_log)
@@ -175,24 +174,46 @@ plot_grid(ggdraw() + draw_label('Ajuste logarítmico BBCH vs. GDD (2022-2023)', 
 ## Relación lineal
 
 ```{r}
-#| column: screen
+#| fig-width: 10
+#| fig-height: 7
 #| fig-align: center
-#| fig-width: 11
-#| fig-height: 6
-#| 
+#| lightbox: true
+    
+texto_le <- paste('y =', round(lm(bbch ~ gdd_log, datos_le)$coefficients[2], 6),
+                  'x +', round(lm(bbch ~ gdd_log, datos_le)$coefficients[1], 6),
+                  "\n", "R2", " =",
+                  round(cor(lm(bbch ~ gdd_log, datos_le)$coefficients[1]+
+               lm(bbch ~ gdd_log, datos_le)$coefficients[2]*datos_le$gdd_log,
+              datos_le$bbch)^2, 2))
+
+ylim_le <- mean(range(datos_le$bbch))
+xlim_le <- max(datos_le$gdd_log)-diff(range(datos_le$gdd_log))*.2
+
 plot_le <- ggplot(datos_le, aes(x = gdd_log, y = bbch)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
-  stat_cor(method = 'pearson', label.x = 6.2, label.y = 77, color = 'black',geom = 'label') +
+  geom_text(x = xlim_le, y = ylim_le, label = texto_le, hjust = .5) +
   labs(title = "La Esperanza",
        x = "GDD (log)",
        y = "Escala BBCH") +
   theme_light()
 
+##
+
+texto_rc <- paste('y =', round(lm(bbch ~ gdd_log, datos_rc)$coefficients[2], 6),
+                  'x +', round(lm(bbch ~ gdd_log, datos_rc)$coefficients[1], 6),
+                  "\n", "R2", " =",
+                  round(cor(lm(bbch ~ gdd_log, datos_rc)$coefficients[1]+
+               lm(bbch ~ gdd_log, datos_rc)$coefficients[2]*datos_rc$gdd_log,
+              datos_rc$bbch)^2, 2))
+
+ylim_rc <- mean(range(datos_rc$bbch))
+xlim_rc <- max(datos_rc$gdd_log)-diff(range(datos_rc$gdd_log))*.2
+
 plot_rc <- ggplot(datos_rc, aes(x = gdd_log, y = bbch)) +
   geom_point() +
   geom_smooth(method = "lm", se = FALSE, color = "blue") +
-  stat_cor(method = 'pearson', label.x = 6.2, label.y = 71, color = 'black',geom = 'label') +
+  geom_text(x = xlim_rc, y = ylim_rc, label = texto_rc, hjust = .5) +
   labs(title = "Rio Claro",
        x = "GDD (log)",
        y = "Escala BBCH") +
